@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Hand Hockey - FULL SCREEN ARENA</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #000; 
+            overflow: hidden; 
+            font-family: 'Courier New', monospace;
+            color: #00ff88;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #webcamCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            opacity: 0.9;
+            mix-blend-mode: screen;
+            filter: contrast(1.2) brightness(1.1);
+            z-index: 5;
+        }
+        
+        #gameCanvas {
+            position: fixed; /* FULL SCREEN! */
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10;
+            cursor: none; /* HAPUS CURSOR */
+        }
+        
+        .hud {
+            position: fixed;
+            top: 20px;
+            font-size: 2.5vw; /* RESPONSIVE */
+            font-weight: bold;
+            text-shadow: 0 0 20px currentColor;
+            z-index: 100;
+            pointer-events: none;
+        }
+        #scoreLeft { left: 5vw; color: #00ff88; }
+        #scoreRight { right: 5vw; color: #ff00ff; }
+        #handsInfo { 
+            top: 8vh; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            color: #ffff00; 
+            font-size: 1.8vw;
+        }
+        
+        .control {
+            position: fixed;
+            background: linear-gradient(45deg, #00ff88, #ff00ff);
+            border: none;
+            padding: 15px 35px;
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #000;
+            border-radius: 35px;
+            cursor: pointer;
+            box-shadow: 0 0 40px rgba(0,255,136,0.8);
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+        .control:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 60px rgba(255,0,255,1);
+        }
+        #startGame { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        #resetGame { top: 20px; left: 20px; }
+        
+        .hidden { display: none !important; }
+        
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ff88;
+            font-size: 1.5vw;
+            text-align: center;
+            z-index: 100;
+            text-shadow: 0 0 10px #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- FULL WEBCAM LIVE ARENA -->
+        <video id="webcamCanvas" autoplay playsinline muted></video>
+        
+        <!-- HUD -->
+        <div id="scoreLeft" class="hud">P1: 0</div>
+        <div id="scoreRight" class="hud">P2: 0</div>
+        <div id="handsInfo" class="hud">Loading hands...</div>
+        
+        <!-- Controls -->
+        <button id="startGame" class="control">🚀 START GAME</button>
+        <button id="resetGame" class="control hidden">🔄 RESET</button>
+        
+        <!-- Instructions -->
+        <div class="instructions">
+
+        </div>
+        
+        <!-- FULL SCREEN GAME CANVAS -->
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script>
+        class NeonHandHockey {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.webcam = document.getElementById('webcamCanvas');
+                
+                // FULL SCREEN DIMENSIONS
+                this.W = window.innerWidth;
+                this.H = window.innerHeight;
+                this.canvas.width = this.W;
+                this.canvas.height = this.H;
+                
+                // Game state
+                this.gameActive = false;
+                this.scoreLeft = 0;
+                this.scoreRight = 0;
+                
+                // Game objects - FULL SCREEN POSITIONS
+                this.paddleLeft = { x: 120, y: this.H/2, r: 35, color: 'transparent' }; // INVISIBLE!
+                this.paddleRight = { x: this.W-120, y: this.H/2, r: 35, color: 'transparent' }; // INVISIBLE!
+                this.ball = {
+                    x: this.W/2, y: this.H/2,
+                    vx: 0, vy: 0,
+                    r: 15,
+                    trail: [],
+                    speed: 9
+                };
+                
+                // Hand tracking - FULL SCREEN
+                this.leftFingerPos = null;
+                this.rightFingerPos = null;
+                this.handsDetected = 0;
+                
+                // Resize handler
+                window.addEventListener('resize', () => this.resize());
+                
+                this.initWebcam();
+                this.bindControls();
+                this.gameLoop();
+            }
+            
+            resize() {
+                this.W = window.innerWidth;
+                this.H = window.innerHeight;
+                this.canvas.width = this.W;
+                this.canvas.height = this.H;
+            }
+            
+            async initWebcam() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 },
+                            facingMode: 'user'
+                        }
+                    });
+                    this.webcam.srcObject = stream;
+                    
+                    this.hands = new Hands({
+                        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                    });
+                    
+                    this.hands.setOptions({
+                        maxNumHands: 2,
+                        modelComplexity: 1,
+                        minDetectionConfidence: 0.8,
+                        minTrackingConfidence: 0.8
+                    });
+                    
+                    this.hands.onResults(this.onHandDetection.bind(this));
+                    
+                    // Kirim frame manual supaya resolusi asli kamera tetap penuh (tidak di-downscale 640x480)
+                    const sendFrame = async () => {
+                        if (this.webcam.readyState >= 2) {
+                            await this.hands.send({ image: this.webcam });
+                        }
+                        requestAnimationFrame(sendFrame);
+                    };
+                    sendFrame();
+                    
+                    document.getElementById('handsInfo').textContent = '✅ FULL SCREEN ARENA! Show INDEX FINGERS';
+                    
+                } catch (error) {
+                    console.error('Webcam error:', error);
+                    document.getElementById('handsInfo').textContent = '❌ Allow camera access!';
+                }
+            }
+            
+            bindControls() {
+                document.getElementById('startGame').onclick = () => this.start();
+                document.getElementById('resetGame').onclick = () => this.reset();
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.key.toLowerCase() === 'r') this.reset();
+                });
+            }
+            
+            onHandDetection(results) {
+                if (!this.gameActive) return;
+                
+                this.leftFingerPos = null;
+                this.rightFingerPos = null;
+                this.handsDetected = 0;
+                
+                if (results.multiHandLandmarks) {
+                    results.multiHandLandmarks.forEach((landmarks) => {
+                        const fingerTip = landmarks[8];
+                        
+                        // FULL SCREEN MIRROR FIX
+                        const x = (1 - fingerTip.x) * this.W;
+                        const y = fingerTip.y * this.H;
+                        
+                        if (x < this.W / 2) {
+                            this.leftFingerPos = {
+                                x: Math.max(80, Math.min(x, this.W/2 - 60)),
+                                y: Math.max(60, Math.min(y, this.H - 60))
+                            };
+                            this.handsDetected++;
+                        } else {
+                            this.rightFingerPos = {
+                                x: Math.max(this.W/2 + 60, Math.min(x, this.W - 80)),
+                                y: Math.max(60, Math.min(y, this.H - 60))
+                            };
+                            this.handsDetected++;
+                        }
+                    });
+                }
+            }
+            
+            start() {
+                this.gameActive = true;
+                document.getElementById('startGame').classList.add('hidden');
+                document.getElementById('resetGame').classList.remove('hidden');
+                this.reset();
+            }
+            
+            reset() {
+                this.scoreLeft = 0;
+                this.scoreRight = 0;
+                this.ball.x = this.W / 2;
+                this.ball.y = this.H / 2;
+                this.ball.vx = (Math.random() > 0.5 ? 1 : -1) * this.ball.speed;
+                this.ball.vy = (Math.random() - 0.5) * this.ball.speed * 0.7;
+                this.ball.trail = [];
+            }
+            
+            update() {
+                if (!this.gameActive) return;
+                
+                // INVISIBLE PADDLE TRACKING (smooth)
+                const smoothFactor = 0.45;
+                if (this.leftFingerPos) {
+                    this.paddleLeft.x += (this.leftFingerPos.x - this.paddleLeft.x) * smoothFactor;
+                    this.paddleLeft.y += (this.leftFingerPos.y - this.paddleLeft.y) * smoothFactor;
+                }
+                if (this.rightFingerPos) {
+                    this.paddleRight.x += (this.rightFingerPos.x - this.paddleRight.x) * smoothFactor;
+                    this.paddleRight.y += (this.rightFingerPos.y - this.paddleRight.y) * smoothFactor;
+                }
+                
+                // Ball physics
+                this.ball.x += this.ball.vx;
+                this.ball.y += this.ball.vy;
+                this.ball.trail.push({ x: this.ball.x, y: this.ball.y });
+                if (this.ball.trail.length > 25) this.ball.trail.shift();
+                
+                // Wall bounce (top/bottom)
+                if (this.ball.y <= this.ball.r || this.ball.y >= this.H - this.ball.r) {
+                    this.ball.vy *= -1.05;
+                }
+                
+                // INVISIBLE PADDLE COLLISION
+                [this.paddleLeft, this.paddleRight].forEach(paddle => {
+                    const dx = this.ball.x - paddle.x;
+                    const dy = this.ball.y - paddle.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (dist < this.ball.r + paddle.r) {
+                        const angle = Math.atan2(dy, dx);
+                        const speed = Math.sqrt(this.ball.vx*this.ball.vx + this.ball.vy*this.ball.vy);
+                        const power = speed > 14 ? 1.5 : 1.3;
+                        
+                        this.ball.vx = Math.cos(angle) * speed * power;
+                        this.ball.vy = Math.sin(angle) * speed * power;
+                        this.ball.x += Math.cos(angle) * 20;
+                        this.ball.y += Math.sin(angle) * 20;
+                    }
+                });
+                
+                // **GAWANG SUDUT KIRI-KANAN** (FULL SCREEN!)
+                const goalWidth = 120;
+                const goalHeight = 180;
+                
+                // LEFT GOAL (sudut kiri)
+                if (this.ball.x < goalWidth && 
+                    this.ball.y > (this.H - goalHeight)/2 && 
+                    this.ball.y < (this.H + goalHeight)/2) {
+                    this.scoreRight++;
+                    this.reset();
+                } 
+                // RIGHT GOAL (sudut kanan)
+                else if (this.ball.x > this.W - goalWidth && 
+                         this.ball.y > (this.H - goalHeight)/2 && 
+                         this.ball.y < (this.H + goalHeight)/2) {
+                    this.scoreLeft++;
+                    this.reset();
+                }
+                
+                // Update HUD
+                document.getElementById('scoreLeft').textContent = `P1: ${this.scoreLeft}`;
+                document.getElementById('scoreRight').textContent = `P2: ${this.scoreRight}`;
+                document.getElementById('handsInfo').textContent = `Hands: ${this.handsDetected} | First to 7!`;
+                
+                if (this.scoreLeft >= 7 || this.scoreRight >= 7) {
+                    this.gameActive = false;
+                    document.getElementById('handsInfo').textContent = 
+                        `${this.scoreLeft >= 7 ? '🟢 LEFT' : '🔴 RIGHT'} WINS! Press R`;
+                }
+            }
+            
+            render() {
+                // CLEAR FULL SCREEN
+                this.ctx.clearRect(0, 0, this.W, this.H);
+                
+                // CENTER LINE (FULL HEIGHT)
+                this.ctx.strokeStyle = '#00ff88';
+                this.ctx.lineWidth = 6;
+                this.ctx.lineCap = 'round';
+                this.ctx.setLineDash([50, 50]);
+                this.ctx.lineDashOffset = -(Date.now() * 0.015) % 100;
+                this.ctx.shadowColor = '#00ff88';
+                this.ctx.shadowBlur = 20;
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.W/2, 0);
+                this.ctx.lineTo(this.W/2, this.H);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+                
+                // **GAWANG SUDUT KIRI-KANAN** (GLOWING!)
+                const goalWidth = 120;
+                const goalHeight = 180;
+                
+                // LEFT GOAL
+                this.ctx.strokeStyle = '#00ff88';
+                this.ctx.lineWidth = 12;
+                this.ctx.shadowColor = '#00ff88';
+                this.ctx.shadowBlur = 35;
+                this.ctx.strokeRect(0, (this.H - goalHeight)/2, goalWidth, goalHeight);
+                
+                // RIGHT GOAL
+                this.ctx.strokeStyle = '#ff00ff';
+                this.ctx.shadowColor = '#ff00ff';
+                this.ctx.shadowBlur = 35;
+                this.ctx.strokeRect(this.W - goalWidth, (this.H - goalHeight)/2, goalWidth, goalHeight);
+                this.ctx.shadowBlur = 0;
+                
+                // **SNIPER SCOPE PEMBIDIK** (besar & jelas)
+                const drawScope = (x, y, color) => {
+                    this.ctx.shadowColor = color;
+                    this.ctx.shadowBlur = 20;
+                    this.ctx.strokeStyle = color;
+                    this.ctx.lineWidth = 3;
+
+                    // Outer ring
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 30, 0, Math.PI*2);
+                    this.ctx.stroke();
+
+                    // Inner ring
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 12, 0, Math.PI*2);
+                    this.ctx.stroke();
+
+                    // Crosshair lines
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x - 35, y);
+                    this.ctx.lineTo(x + 35, y);
+                    this.ctx.moveTo(x, y - 35);
+                    this.ctx.lineTo(x, y + 35);
+                    this.ctx.stroke();
+
+                    // Center dot
+                    this.ctx.fillStyle = color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 5, 0, Math.PI*2);
+                    this.ctx.fill();
+
+                    this.ctx.shadowBlur = 0;
+                };
+
+                if (this.leftFingerPos) {
+                    drawScope(this.leftFingerPos.x, this.leftFingerPos.y, '#00ff88');
+                }
+                if (this.rightFingerPos) {
+                    drawScope(this.rightFingerPos.x, this.rightFingerPos.y, '#ff00ff');
+                }
+                
+                // BALL TRAIL (EPIC GLOW)
+                this.ball.trail.forEach((pos, i) => {
+                    const alpha = i / this.ball.trail.length;
+                    this.ctx.shadowColor = '#ffffff';
+                    this.ctx.shadowBlur = 20 - i * 0.8;
+                    this.ctx.fillStyle = `rgba(255,255,255,${alpha * 0.7})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(pos.x, pos.y, this.ball.r * (0.4 + alpha), 0, Math.PI*2);
+                    this.ctx.fill();
+                });
+                
+                // MAIN BALL (ULTRA BRIGHT)
+                this.ctx.shadowColor = '#ffffff';
+                this.ctx.shadowBlur = 50;
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.beginPath();
+                this.ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, Math.PI*2);
+                this.ctx.fill();
+                
+                this.ctx.shadowBlur = 0;
+            }
+            
+            gameLoop() {
+                this.update();
+                this.render();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+        
+        // LAUNCH FULL SCREEN GAME
+        new NeonHandHockey();
+    </script>
+</body>
+</html>
