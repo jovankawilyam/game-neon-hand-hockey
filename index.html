@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <h1>Build by Jovanka</h1>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Hand Hockey - FULL SCREEN ARENA</title>
+    <title>Neon Hand Hockey by Jovanka - FULL SCREEN ARENA</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <style>
+        h1 { 
+            position: fixed; top: 10px; left: 50%; transform: translateX(-50%); color: #00ff88; font-family: 'Courier New', monospace; z-index: 1000; pointer-events: none; 
+            text-shadow: 0 0 20px #00ff88;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             background: #000; 
@@ -204,7 +210,7 @@
                     };
                     sendFrame();
                     
-                    document.getElementById('handsInfo').textContent = '✅ FULL SCREEN ARENA! Show INDEX FINGERS';
+                    document.getElementById('handsInfo').textContent = 'Tunjukkan Jari Telunjuk';
                     
                 } catch (error) {
                     console.error('Webcam error:', error);
