@@ -4,7 +4,7 @@
     <h1>Build by Jovanka</h1>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Hand Hockey by Jovanka - FULL SCREEN ARENA</title>
+    <title>Neon Hand Hockey by Jovanka - 100% PERFECT VERSION</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <style>
@@ -12,88 +12,28 @@
             position: fixed; top: 10px; left: 50%; transform: translateX(-50%); color: #00ff88; font-family: 'Courier New', monospace; z-index: 1000; pointer-events: none; 
             text-shadow: 0 0 20px #00ff88;
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #000; 
-            overflow: hidden; 
-            font-family: 'Courier New', monospace;
-            color: #00ff88;
-        }
-        
-        #gameContainer {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-        
+        body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; color: #00ff88; }
+        #gameContainer { position: relative; width: 100vw; height: 100vh; }
         #webcamCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
-            opacity: 0.9;
-            mix-blend-mode: screen;
-            filter: contrast(1.2) brightness(1.1);
-            z-index: 5;
-            /* FIX 1: Mirroring Kamera secara visual */
-            transform: scaleX(-1);
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            object-fit: cover; opacity: 0.8; mix-blend-mode: screen;
+            filter: contrast(1.2) brightness(1.1); z-index: 5; transform: scaleX(-1);
         }
-        
-        #gameCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 10;
-            cursor: none;
-        }
-        
-        .hud {
-            position: fixed;
-            top: 20px;
-            font-size: 2.5vw;
-            font-weight: bold;
-            text-shadow: 0 0 20px currentColor;
-            z-index: 100;
-            pointer-events: none;
-        }
+        #gameCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10; cursor: none; }
+        .hud { position: fixed; top: 20px; font-size: 2.5vw; font-weight: bold; text-shadow: 0 0 20px currentColor; z-index: 100; pointer-events: none; }
         #scoreLeft { left: 5vw; color: #00ff88; }
         #scoreRight { right: 5vw; color: #ff00ff; }
-        #handsInfo { 
-            top: 8vh; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            color: #ffff00; 
-            font-size: 1.8vw;
-        }
-        
+        #handsInfo { top: 8vh; left: 50%; transform: translateX(-50%); color: #ffff00; font-size: 1.8vw; }
         .control {
-            position: fixed;
-            background: linear-gradient(45deg, #00ff88, #ff00ff);
-            border: none;
-            padding: 15px 35px;
-            font-size: 1.4em;
-            font-weight: bold;
-            color: #000;
-            border-radius: 35px;
-            cursor: pointer;
-            box-shadow: 0 0 40px rgba(0,255,136,0.8);
-            z-index: 1000;
-            transition: all 0.3s;
+            position: fixed; background: linear-gradient(45deg, #00ff88, #ff00ff);
+            border: none; padding: 15px 35px; font-size: 1.4em; font-weight: bold;
+            color: #000; border-radius: 35px; cursor: pointer;
+            box-shadow: 0 0 40px rgba(0,255,136,0.8); z-index: 1000; transition: all 0.3s;
         }
-        .control:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 60px rgba(255,0,255,1);
-        }
+        .control:hover { transform: scale(1.1); box-shadow: 0 0 60px rgba(255,0,255,1); }
         #startGame { top: 50%; left: 50%; transform: translate(-50%, -50%); }
-        
-        /* FIX 2: Posisi tombol reset agar tidak menghalangi skor */
         #resetGame { bottom: 20px; right: 20px; }
-        
         .hidden { display: none !important; }
     </style>
 </head>
@@ -102,11 +42,9 @@
         <video id="webcamCanvas" autoplay playsinline muted></video>
         <div id="scoreLeft" class="hud">P1: 0</div>
         <div id="scoreRight" class="hud">P2: 0</div>
-        <div id="handsInfo" class="hud">Loading hands...</div>
-        
+        <div id="handsInfo" class="hud">Menunggu Kamera...</div>
         <button id="startGame" class="control">🚀 START GAME</button>
         <button id="resetGame" class="control hidden">🔄 RESET</button>
-        
         <canvas id="gameCanvas"></canvas>
     </div>
 
@@ -116,25 +54,25 @@
                 this.canvas = document.getElementById('gameCanvas');
                 this.ctx = this.canvas.getContext('2d');
                 this.webcam = document.getElementById('webcamCanvas');
-                
                 this.W = window.innerWidth;
                 this.H = window.innerHeight;
                 this.canvas.width = this.W;
                 this.canvas.height = this.H;
-                
                 this.gameActive = false;
                 this.scoreLeft = 0;
                 this.scoreRight = 0;
                 
-                this.paddleLeft = { x: 120, y: this.H/2, r: 35 };
-                this.paddleRight = { x: this.W-120, y: this.H/2, r: 35 };
-                this.ball = {
-                    x: this.W/2, y: this.H/2,
-                    vx: 0, vy: 0,
-                    r: 15,
-                    trail: [],
-                    speed: 9
-                };
+                // --- CONFIGURABLE PARAMS ---
+                this.goalHeight = 220;
+                this.goalWidth = 120;
+                this.paddleRadius = 45;
+                this.ballRadius = 15;
+                this.initialBallSpeed = 12;
+                this.maxBallSpeed = 22; // Speed Cap supaya tidak teleportasi
+                
+                this.paddleLeft = { x: 120, y: this.H/2, r: this.paddleRadius };
+                this.paddleRight = { x: this.W-120, y: this.H/2, r: this.paddleRadius };
+                this.ball = { x: this.W/2, y: this.H/2, vx: 0, vy: 0, r: this.ballRadius, trail: [] };
                 
                 this.leftFingerPos = null;
                 this.rightFingerPos = null;
@@ -147,245 +85,175 @@
             }
             
             resize() {
-                this.W = window.innerWidth;
-                this.H = window.innerHeight;
-                this.canvas.width = this.W;
-                this.canvas.height = this.H;
+                this.W = window.innerWidth; this.H = window.innerHeight;
+                this.canvas.width = this.W; this.canvas.height = this.H;
             }
             
             async initWebcam() {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { width: { ideal: 1920 }, height: { ideal: 1080 } }
-                    });
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
                     this.webcam.srcObject = stream;
-                    
-                    this.hands = new Hands({
-                        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-                    });
-                    
-                    this.hands.setOptions({
-                        maxNumHands: 2,
-                        modelComplexity: 1,
-                        minDetectionConfidence: 0.8,
-                        minTrackingConfidence: 0.8
-                    });
-                    
-                    this.hands.onResults(this.onHandDetection.bind(this));
-                    
-                    const sendFrame = async () => {
-                        if (this.webcam.readyState >= 2) {
-                            await this.hands.send({ image: this.webcam });
-                        }
-                        requestAnimationFrame(sendFrame);
-                    };
-                    sendFrame();
-                } catch (error) {
-                    document.getElementById('handsInfo').textContent = '❌ Camera Error';
-                }
+                    this.hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+                    this.hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+                    this.hands.onResults((res) => this.onHandDetection(res));
+                    const camera = new Camera(this.webcam, { onFrame: async () => { await this.hands.send({image: this.webcam}); } });
+                    camera.start();
+                } catch (e) { document.getElementById('handsInfo').textContent = '❌ Akses Kamera Ditolak'; }
             }
             
             bindControls() {
                 document.getElementById('startGame').onclick = () => this.start();
                 document.getElementById('resetGame').onclick = () => this.resetGame();
-                document.addEventListener('keydown', (e) => {
-                    if (e.key.toLowerCase() === 'r') this.resetGame();
-                });
+                document.addEventListener('keydown', (e) => { if (e.key.toLowerCase() === 'r') this.resetGame(); });
             }
             
             onHandDetection(results) {
                 if (!this.gameActive) return;
-                this.leftFingerPos = null;
-                this.rightFingerPos = null;
+                this.leftFingerPos = this.rightFingerPos = null;
                 this.handsDetected = 0;
-                
                 if (results.multiHandLandmarks) {
                     results.multiHandLandmarks.forEach((landmarks) => {
-                        const fingerTip = landmarks[8];
-                        const x = (1 - fingerTip.x) * this.W;
-                        const y = fingerTip.y * this.H;
-                        
+                        const x = (1 - landmarks[8].x) * this.W;
+                        const y = landmarks[8].y * this.H;
                         if (x < this.W / 2) {
-                            this.leftFingerPos = {
-                                x: Math.max(80, Math.min(x, this.W/2 - 60)),
-                                y: Math.max(60, Math.min(y, this.H - 60))
-                            };
-                            this.handsDetected++;
+                            this.leftFingerPos = { x: Math.max(80, Math.min(x, this.W/2 - 60)), y: Math.max(60, Math.min(y, this.H - 60)) };
                         } else {
-                            this.rightFingerPos = {
-                                x: Math.max(this.W/2 + 60, Math.min(x, this.W - 80)),
-                                y: Math.max(60, Math.min(y, this.H - 60))
-                            };
-                            this.handsDetected++;
+                            this.rightFingerPos = { x: Math.max(this.W/2 + 60, Math.min(x, this.W - 80)), y: Math.max(60, Math.min(y, this.H - 60)) };
                         }
+                        this.handsDetected++;
                     });
                 }
             }
             
             start() {
                 this.gameActive = true;
-                this.scoreLeft = 0;
-                this.scoreRight = 0;
                 document.getElementById('startGame').classList.add('hidden');
                 document.getElementById('resetGame').classList.remove('hidden');
                 this.resetBall();
             }
 
-            resetGame() {
-                this.scoreLeft = 0;
-                this.scoreRight = 0;
-                this.resetBall();
-                this.gameActive = true;
-            }
+            resetGame() { this.scoreLeft = this.scoreRight = 0; this.resetBall(); this.gameActive = true; }
             
             resetBall() {
-                this.ball.x = this.W / 2;
-                this.ball.y = this.H / 2;
-                this.ball.vx = (Math.random() > 0.5 ? 1 : -1) * this.ball.speed;
-                this.ball.vy = (Math.random() - 0.5) * 10;
+                this.ball.x = this.W / 2; this.ball.y = this.H / 2;
+                this.ball.vx = (Math.random() > 0.5 ? 1 : -1) * this.initialBallSpeed;
+                this.ball.vy = (Math.random() - 0.5) * 12;
                 this.ball.trail = [];
             }
             
             update() {
                 if (!this.gameActive) return;
-                
-                const smoothFactor = 0.45;
+                const smooth = 0.45;
                 if (this.leftFingerPos) {
-                    this.paddleLeft.x += (this.leftFingerPos.x - this.paddleLeft.x) * smoothFactor;
-                    this.paddleLeft.y += (this.leftFingerPos.y - this.paddleLeft.y) * smoothFactor;
+                    this.paddleLeft.x += (this.leftFingerPos.x - this.paddleLeft.x) * smooth;
+                    this.paddleLeft.y += (this.leftFingerPos.y - this.paddleLeft.y) * smooth;
                 }
                 if (this.rightFingerPos) {
-                    this.paddleRight.x += (this.rightFingerPos.x - this.paddleRight.x) * smoothFactor;
-                    this.paddleRight.y += (this.rightFingerPos.y - this.paddleRight.y) * smoothFactor;
+                    this.paddleRight.x += (this.rightFingerPos.x - this.paddleRight.x) * smooth;
+                    this.paddleRight.y += (this.rightFingerPos.y - this.paddleRight.y) * smooth;
                 }
                 
-                this.ball.x += this.ball.vx;
-                this.ball.y += this.ball.vy;
+                this.ball.x += this.ball.vx; this.ball.y += this.ball.vy;
                 this.ball.trail.push({ x: this.ball.x, y: this.ball.y });
-                if (this.ball.trail.length > 25) this.ball.trail.shift();
+                if (this.ball.trail.length > 20) this.ball.trail.shift();
                 
-                // Pantul Atas/Bawah
+                // Pantulan Atas/Bawah Arena
                 if (this.ball.y <= this.ball.r || this.ball.y >= this.H - this.ball.r) {
                     this.ball.vy *= -1;
+                    this.ball.y = this.ball.y <= this.ball.r ? this.ball.r : this.H - this.ball.r;
                 }
                 
-                // FIX 3 & 4: Logika Gawang vs Pantulan Dinding Samping
-                const goalHeight = 180;
-                const goalTop = (this.H - goalHeight) / 2;
-                const goalBottom = (this.H + goalHeight) / 2;
+                const goalTop = (this.H - this.goalHeight) / 2;
+                const goalBottom = (this.H + this.goalHeight) / 2;
 
-                // Sisi Kiri
-                if (this.ball.x <= this.ball.r) {
+                // --- 100% PERFECT COLLISION SISI KIRI ---
+                if (this.ball.x <= this.goalWidth + this.ball.r) {
                     if (this.ball.y > goalTop && this.ball.y < goalBottom) {
-                        this.scoreRight++; // Goal untuk P2
-                        this.resetBall();
+                        if (this.ball.x <= this.ball.r) { this.scoreRight++; this.resetBall(); }
                     } else {
-                        this.ball.vx *= -1; // Mantul
-                        this.ball.x = this.ball.r;
+                        // Pantul di Tiang Depan
+                        if (this.ball.x <= this.goalWidth + this.ball.r && this.ball.x > this.goalWidth - 10) {
+                            this.ball.vx = Math.abs(this.ball.vx); 
+                            this.ball.x = this.goalWidth + this.ball.r + 1;
+                        }
+                        // Pantul di Tiang Atas/Bawah Kotak (Mencegah tembus samping)
+                        if (this.ball.x < this.goalWidth) {
+                            if (Math.abs(this.ball.y - goalTop) < this.ball.r || Math.abs(this.ball.y - goalBottom) < this.ball.r) {
+                                this.ball.vy *= -1;
+                            }
+                        }
                     }
                 } 
-                // Sisi Kanan
-                else if (this.ball.x >= this.W - this.ball.r) {
+                // --- 100% PERFECT COLLISION SISI KANAN ---
+                else if (this.ball.x >= this.W - (this.goalWidth + this.ball.r)) {
                     if (this.ball.y > goalTop && this.ball.y < goalBottom) {
-                        this.scoreLeft++; // Goal untuk P1
-                        this.resetBall();
+                        if (this.ball.x >= this.W - this.ball.r) { this.scoreLeft++; this.resetBall(); }
                     } else {
-                        this.ball.vx *= -1; // Mantul
-                        this.ball.x = this.W - this.ball.r;
+                        if (this.ball.x >= this.W - this.goalWidth - this.ball.r && this.ball.x < this.W - this.goalWidth + 10) {
+                            this.ball.vx = -Math.abs(this.ball.vx);
+                            this.ball.x = this.W - this.goalWidth - this.ball.r - 1;
+                        }
+                        if (this.ball.x > this.W - this.goalWidth) {
+                            if (Math.abs(this.ball.y - goalTop) < this.ball.r || Math.abs(this.ball.y - goalBottom) < this.ball.r) {
+                                this.ball.vy *= -1;
+                            }
+                        }
                     }
                 }
                 
                 // Tabrakan Paddle
-                [this.paddleLeft, this.paddleRight].forEach(paddle => {
-                    const dx = this.ball.x - paddle.x;
-                    const dy = this.ball.y - paddle.y;
+                [this.paddleLeft, this.paddleRight].forEach(p => {
+                    const dx = this.ball.x - p.x, dy = this.ball.y - p.y;
                     const dist = Math.sqrt(dx*dx + dy*dy);
-                    
-                    if (dist < this.ball.r + paddle.r) {
+                    if (dist < this.ball.r + p.r) {
                         const angle = Math.atan2(dy, dx);
-                        const speed = Math.sqrt(this.ball.vx**2 + this.ball.vy**2);
-                        this.ball.vx = Math.cos(angle) * (speed + 1);
-                        this.ball.vy = Math.sin(angle) * (speed + 1);
+                        const speed = Math.min(Math.sqrt(this.ball.vx**2 + this.ball.vy**2) + 1.2, this.maxBallSpeed);
+                        this.ball.vx = Math.cos(angle) * speed;
+                        this.ball.vy = Math.sin(angle) * speed;
+                        this.ball.x += Math.cos(angle) * 10; // Anti-stuck
                     }
                 });
                 
                 document.getElementById('scoreLeft').textContent = `P1: ${this.scoreLeft}`;
                 document.getElementById('scoreRight').textContent = `P2: ${this.scoreRight}`;
-                document.getElementById('handsInfo').textContent = `Hands: ${this.handsDetected} | First to 7!`;
+                document.getElementById('handsInfo').textContent = `Status: ${this.handsDetected} Tangan Terdeteksi`;
                 
                 if (this.scoreLeft >= 7 || this.scoreRight >= 7) {
                     this.gameActive = false;
-                    document.getElementById('handsInfo').textContent = 
-                        `${this.scoreLeft >= 7 ? '🟢 LEFT' : '🔴 RIGHT'} WINS! Press R`;
+                    document.getElementById('handsInfo').textContent = `${this.scoreLeft >= 7 ? '🟢 P1' : '🔴 P2'} MENANG! Press R`;
                 }
             }
             
             render() {
                 this.ctx.clearRect(0, 0, this.W, this.H);
+                this.ctx.strokeStyle = '#00ff88'; this.ctx.lineWidth = 4; this.ctx.setLineDash([40, 30]);
+                this.ctx.beginPath(); this.ctx.moveTo(this.W/2, 0); this.ctx.lineTo(this.W/2, this.H); this.ctx.stroke(); this.ctx.setLineDash([]);
                 
-                // Garis Tengah
-                this.ctx.strokeStyle = '#00ff88';
-                this.ctx.lineWidth = 6;
-                this.ctx.setLineDash([50, 50]);
-                this.ctx.beginPath();
-                this.ctx.moveTo(this.W/2, 0);
-                this.ctx.lineTo(this.W/2, this.H);
-                this.ctx.stroke();
-                this.ctx.setLineDash([]);
+                this.ctx.lineWidth = 10; this.ctx.shadowBlur = 30;
+                this.ctx.strokeStyle = '#00ff88'; this.ctx.shadowColor = '#00ff88';
+                this.ctx.strokeRect(0, (this.H - this.goalHeight)/2, this.goalWidth, this.goalHeight);
+                this.ctx.strokeStyle = '#ff00ff'; this.ctx.shadowColor = '#ff00ff';
+                this.ctx.strokeRect(this.W - this.goalWidth, (this.H - this.goalHeight)/2, this.goalWidth, this.goalHeight);
                 
-                // Gawang
-                const goalHeight = 180;
-                const goalWidth = 120;
-                this.ctx.lineWidth = 12;
-                this.ctx.shadowBlur = 35;
-                
-                this.ctx.strokeStyle = '#00ff88';
-                this.ctx.shadowColor = '#00ff88';
-                this.ctx.strokeRect(0, (this.H - goalHeight)/2, goalWidth, goalHeight);
-                
-                this.ctx.strokeStyle = '#ff00ff';
-                this.ctx.shadowColor = '#ff00ff';
-                this.ctx.strokeRect(this.W - goalWidth, (this.H - goalHeight)/2, goalWidth, goalHeight);
-                
-                // Sniper Scope
                 const drawScope = (x, y, color) => {
-                    this.ctx.shadowBlur = 20;
-                    this.ctx.strokeStyle = color;
-                    this.ctx.lineWidth = 3;
-                    this.ctx.beginPath();
-                    this.ctx.arc(x, y, 30, 0, Math.PI*2);
-                    this.ctx.stroke();
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x - 35, y); this.ctx.lineTo(x + 35, y);
-                    this.ctx.moveTo(x, y - 35); this.ctx.lineTo(x, y + 35);
-                    this.ctx.stroke();
+                    this.ctx.shadowBlur = 25; this.ctx.strokeStyle = color; this.ctx.lineWidth = 4;
+                    this.ctx.beginPath(); this.ctx.arc(x, y, 35, 0, Math.PI*2); this.ctx.stroke();
+                    this.ctx.beginPath(); this.ctx.moveTo(x-40, y); this.ctx.lineTo(x+40, y); this.ctx.moveTo(x, y-40); this.ctx.lineTo(x, y+40); this.ctx.stroke();
+                    this.ctx.fillStyle = color; this.ctx.beginPath(); this.ctx.arc(x, y, 6, 0, Math.PI*2); this.ctx.fill();
                 };
-
                 if (this.leftFingerPos) drawScope(this.leftFingerPos.x, this.leftFingerPos.y, '#00ff88');
                 if (this.rightFingerPos) drawScope(this.rightFingerPos.x, this.rightFingerPos.y, '#ff00ff');
                 
-                // Ball
                 this.ball.trail.forEach((pos, i) => {
-                    this.ctx.fillStyle = `rgba(255,255,255,${i/25})`;
-                    this.ctx.beginPath();
-                    this.ctx.arc(pos.x, pos.y, this.ball.r, 0, Math.PI*2);
-                    this.ctx.fill();
+                    this.ctx.fillStyle = `rgba(255, 255, 255, ${i/20 * 0.5})`;
+                    this.ctx.beginPath(); this.ctx.arc(pos.x, pos.y, this.ball.r * (i/20), 0, Math.PI*2); this.ctx.fill();
                 });
-                
-                this.ctx.shadowColor = '#ffffff';
-                this.ctx.shadowBlur = 50;
-                this.ctx.fillStyle = '#ffffff';
-                this.ctx.beginPath();
-                this.ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, Math.PI*2);
-                this.ctx.fill();
+                this.ctx.shadowColor = '#ffffff'; this.ctx.shadowBlur = 40; this.ctx.fillStyle = '#ffffff';
+                this.ctx.beginPath(); this.ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, Math.PI*2); this.ctx.fill();
                 this.ctx.shadowBlur = 0;
             }
             
-            gameLoop() {
-                this.update();
-                this.render();
-                requestAnimationFrame(() => this.gameLoop());
-            }
+            gameLoop() { this.update(); this.render(); requestAnimationFrame(() => this.gameLoop()); }
         }
         new NeonHandHockey();
     </script>
